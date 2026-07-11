@@ -1,26 +1,29 @@
 @import "tailwindcss";
+@import "../../node_modules/preline/variants.css";
+@import "@arcgis/core/assets/esri/themes/light/main.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Preline's plugins toggle classes from JS, so Tailwind must scan its dist
+   files to know those classes exist. This is the v4 replacement for the old
+   `content` array in tailwind.config.js. */
+@source "../../node_modules/preline/dist/*.js";
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Let our Tailwind font stack flow into ArcGIS-rendered UI (attribution,
+   popups) so the seam between the two worlds doesn't show. */
+.esri-view {
+  font-family: var(--font-sans), system-ui, sans-serif;
 }

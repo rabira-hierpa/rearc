@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ReArc
 
-## Getting Started
+A Google-Maps-style transport network analysis app, built as a blog series on
+[rz-codes.com](https://blog.rz-codes.com). This is the companion repo — each
+part of the series is a tagged milestone you can check out and run.
 
-First, run the development server:
+**Stack:** [Next.js 16](https://nextjs.org) · [React 19](https://react.dev) ·
+[ArcGIS Maps SDK for JavaScript 5](https://developers.arcgis.com/javascript/latest/) ·
+[Tailwind CSS v4](https://tailwindcss.com) · [Preline UI](https://preline.co) ·
+[oxlint + oxfmt](https://oxc.rs)
+
+## Quick start
 
 ```bash
+git clone https://github.com/rabirahierpa/rearc.git
+cd rearc
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>. No ArcGIS account or API key is needed — Part 0
+uses a public Esri sample service. (An optional key slot exists in
+`.env.example` for the premium services used from Part 2 onwards.)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## The architecture in one paragraph
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Everything imperative, mutable, and event-driven — the `MapView`, layers,
+watchers, and (later) selections and highlights — lives in a plain TypeScript
+class, [`MapEngine`](src/lib/map/MapEngine.ts), which never imports React.
+React holds a single stable reference to the engine in context and reads
+immutable state snapshots through `useSyncExternalStore`. The two worlds meet
+in exactly one place: [`MapCanvas`](src/components/map/MapCanvas.tsx) hands the
+engine a DOM node in an effect. No ArcGIS object ever enters React state, so
+there are no re-render storms and no stale closures over live views.
 
-## Learn More
+```
+┌─ React (declarative, thin) ─────────────────────────────┐
+│  MapProvider ── context: engine instance (never changes)│
+│  useEngineSnapshot() ── useSyncExternalStore            │
+│  SearchBar · MapControls · BasemapToggle · CameraReadout│
+└──────────────┬────────────────────────▲─────────────────┘
+     commands  │                        │  snapshots (immutable)
+┌──────────────▼────────────────────────┴─────────────────┐
+│  MapEngine (imperative core — zero React imports)       │
+│  owns: MapView · layers · reactiveUtils watchers        │
+│  emits: "change" → new EngineSnapshot                   │
+└──────────────────────────────────────────────────────────┘
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Project layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+  lib/map/            The framework-free core
+    MapEngine.ts        View lifecycle, commands, snapshot publishing
+    emitter.ts          Typed event emitter (the useSyncExternalStore contract)
+    config.ts           Basemaps, initial camera, layer definitions
+    types.ts            EngineSnapshot and friends
+  components/
+    map/                The React ↔ engine bridge
+      MapProvider.tsx     Context + useMapEngine + useEngineSnapshot
+      MapCanvas.tsx       The one place React hands the engine a DOM node
+    shell/              Google-Maps-style chrome (Preline + Tailwind)
+    preline/            Preline re-init on App Router navigation
+  app/                  Next.js App Router entry
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+| Command             | What it does            |
+| ------------------- | ----------------------- |
+| `npm run dev`       | Dev server (Turbopack)  |
+| `npm run build`     | Production build        |
+| `npm run lint`      | oxlint                  |
+| `npm run fmt`       | oxfmt (writes in place) |
+| `npm run typecheck` | `tsc --noEmit`          |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## The series
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Part | Topic                                                  | Status       |
+| ---- | ------------------------------------------------------ | ------------ |
+| 0    | Foundations — the hybrid pattern, a map on screen      | ✅ this code |
+| 1    | Layer registry & toggling                              | soon         |
+| 2    | Search: layers, features, geocoding (+ TanStack Query) | soon         |
+| 3    | Highlight & selection                                  | soon         |
+| 4    | Filtering: definition expressions & client-side        | soon         |
+| 5    | Mass edit with a Command stack (undo/redo)             | soon         |
+| 6    | Reports (+ GraphQL)                                    | soon         |
+| 7    | Network analysis on the Addis Ababa transit network    | soon         |
+
+## License
+
+[MIT](LICENSE). Map data in Part 0 comes from Esri's public sample services
+and is subject to Esri's terms of use.
