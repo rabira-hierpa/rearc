@@ -37,6 +37,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="h-full overflow-hidden bg-gray-100">
+        {/* Keep the major.minor pinned to the installed @arcgis/core version
+            so the CSS and the SDK's DOM structures never drift apart. React
+            hoists this into <head>; `precedence` opts into dedup/ordering. */}
+        <link
+          rel="stylesheet"
+          precedence="default"
+          href="https://js.arcgis.com/5.1/esri/themes/light/main.css"
+        />
         {children}
         <PrelineLoader />
       </body>

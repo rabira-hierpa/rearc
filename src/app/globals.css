@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "../../node_modules/preline/variants.css";
-@import "@arcgis/core/assets/esri/themes/light/main.css";
+
+/* The ArcGIS theme CSS is deliberately NOT imported here — it is loaded as a
+   versioned CDN <link> in layout.tsx. Bundling it makes Turbopack resolve 87
+   url() asset references against @arcgis/core's 83 MB assets folder on every
+   production build, for a file Esri already serves byte-identical from the
+   same CDN the SDK loads its runtime assets from. */
 
 /* Preline's plugins toggle classes from JS, so Tailwind must scan its dist
    files to know those classes exist. This is the v4 replacement for the old
