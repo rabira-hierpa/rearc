@@ -1,8 +1,8 @@
 # Getting Started with Web Maps: ArcGIS Maps SDK 5, Next.js 16, Tailwind v4 and Preline — Part 1: Foundations
 
-> This is a ground-up rewrite of my 2025 post ["Getting started with web maps: Next.js 15, React 19 and ArcGIS TypeScript SDK 4.32"](https://blog.rz-codes.com/442/web-dev/getting-started-with-web-maps-next-js-15-react-19-and-arcgis-typescript-sdk-4-32/). Enough has changed in a year that patching the old post would have been dishonest. This is also Part 0 of a new series: we're going to build a **transport network analysis app with the UI/UX of Google Maps** — layer toggling, search, feature highlighting, filtering, mass editing with undo/redo, reports, and finally network analysis on the Addis Ababa transit network.
+> This is a ground-up rewrite of my 2025 post ["Getting started with web maps: Next.js 15, React 19 and ArcGIS TypeScript SDK 4.32"](https://blog.rz-codes.com/442/web-dev/getting-started-with-web-maps-next-js-15-react-19-and-arcgis-typescript-sdk-4-32/). Enough has changed in a year that patching the old post would have been dishonest. This is also Part 1 of a new series: we're going to build a **transport network analysis app with the UI/UX of Google Maps** — layer toggling, search, feature highlighting, filtering, mass editing with undo/redo, reports, and finally network analysis on the Addis Ababa transit network.
 >
-> All code is on GitHub: [github.com/rabirahierpa/rearc](https://github.com/rabirahierpa/rearc). Every part of the series is a tagged milestone you can check out and run.
+> All code is on GitHub: [github.com/rabira-hierpa/rearc](https://github.com/rabira-hierpa/rearc). Every part of the series is a tagged milestone you can check out and run.
 
 ## Why a rewrite? The stack shifted under us
 
@@ -58,13 +58,13 @@ This isn't just tidiness. Each classic design pattern maps onto a feature we'll 
 | Pattern               | Where it shows up in this series                                 |
 | --------------------- | ---------------------------------------------------------------- |
 | **Observer**          | The engine's event bus feeding React (this post)                 |
-| **Registry / Facade** | Layer toggling and search (Parts 1–2)                            |
-| **Strategy**          | Filter expressions — attribute vs. spatial vs. temporal (Part 4) |
-| **Command**           | Mass edit with undo/redo — a `CommandStack` class (Part 5)       |
+| **Registry / Facade** | Layer toggling and search (Parts 2–3)                            |
+| **Strategy**          | Filter expressions — attribute vs. spatial vs. temporal (Part 5) |
+| **Command**           | Mass edit with undo/redo — a `CommandStack` class (Part 6)       |
 
 ### Why not Esri's UI, and why not _only_ Preline?
 
-Esri ships the Calcite Design System, and it's good — but build your chrome with it and you get "an Esri viewer", not "Google Maps". Preline gives us Tailwind-native app chrome. The line I draw: **anything the user sees and navigates by is Preline** (search bar, panels, modals, tables); **anything doing heavy map-domain lifting stays Esri** (sketch, editor, print — when we get there). In Part 0, that means the map has _zero_ Esri UI except the legally required attribution.
+Esri ships the Calcite Design System, and it's good — but build your chrome with it and you get "an Esri viewer", not "Google Maps". Preline gives us Tailwind-native app chrome. The line I draw: **anything the user sees and navigates by is Preline** (search bar, panels, modals, tables); **anything doing heavy map-domain lifting stays Esri** (sketch, editor, print — when we get there). In Part 1, that means the map has _zero_ Esri UI except the legally required attribution.
 
 ---
 
@@ -112,15 +112,7 @@ npx oxfmt --init
 ```json
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "oxc",
-    "react",
-    "nextjs",
-    "import",
-    "jsx-a11y"
-  ],
+  "plugins": ["typescript", "unicorn", "oxc", "react", "nextjs", "import", "jsx-a11y"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -293,10 +285,7 @@ type Listener<TPayload> = (payload: TPayload) => void;
 export class Emitter<TEvents extends Record<string, unknown>> {
   private readonly listeners = new Map<keyof TEvents, Set<Listener<never>>>();
 
-  on<TName extends keyof TEvents>(
-    name: TName,
-    listener: Listener<TEvents[TName]>,
-  ): () => void {
+  on<TName extends keyof TEvents>(name: TName, listener: Listener<TEvents[TName]>): () => void {
     let set = this.listeners.get(name);
     if (!set) {
       set = new Set();
@@ -308,10 +297,7 @@ export class Emitter<TEvents extends Record<string, unknown>> {
     };
   }
 
-  emit<TName extends keyof TEvents>(
-    name: TName,
-    payload: TEvents[TName],
-  ): void {
+  emit<TName extends keyof TEvents>(name: TName, payload: TEvents[TName]): void {
     const set = this.listeners.get(name);
     if (!set) return;
     // Sets tolerate deletion during iteration, so listeners may safely
@@ -331,7 +317,7 @@ Thirty lines, fully typed, no dependency. The important design decision is the r
 
 ### 4.3 Configuration as data (`config.ts`)
 
-Part 0 uses a public Esri sample service (LA-area trailheads), so the repo runs with **zero setup — no ArcGIS account, no API key**. When the series switches to the Addis Ababa GTFS network in a later part, this file is the only thing that changes.
+Part 1 uses a public Esri sample service (LA-area trailheads), so the repo runs with **zero setup — no ArcGIS account, no API key**. When the series switches to the Addis Ababa GTFS network in a later part, this file is the only thing that changes.
 
 ```ts
 import type { MapConfig } from "./types";
@@ -560,9 +546,7 @@ export class MapEngine {
   private zoomBy(delta: number): void {
     const view = this.view;
     if (!view) return;
-    view
-      .goTo({ zoom: view.zoom + delta }, { duration: 200 })
-      .catch(ignoreViewInterruption);
+    view.goTo({ zoom: view.zoom + delta }, { duration: 200 }).catch(ignoreViewInterruption);
   }
 
   private syncCamera(): void {
@@ -727,9 +711,7 @@ export function MapCanvas() {
       {status === "error" && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 p-4">
           <div className="w-full max-w-sm rounded-xl border border-red-200 bg-white p-5 shadow-lg">
-            <h2 className="font-semibold text-gray-800">
-              The map failed to load
-            </h2>
+            <h2 className="font-semibold text-gray-800">The map failed to load</h2>
             <p className="mt-1 text-sm break-words text-gray-500">{error}</p>
             <button
               type="button"
@@ -757,7 +739,7 @@ Four components make up the chrome. They share a theme (white cards, `rounded-fu
 
 ### The search pill — a _server_ component, on purpose
 
-The floating search bar (hamburger menu + input + search icon) is pure markup: Preline's dropdown is driven entirely by `data-hs-*` attributes and classes, no React state. That means the whole component can stay a **server component** — it ships zero JS. The input is disabled with a "(Part 2)" placeholder because faking a working search would be worse than being honest. See [`src/components/shell/SearchBar.tsx`](https://github.com/rabirahierpa/rearc/blob/main/src/components/shell/SearchBar.tsx) for the full markup — the interesting part is what's _not_ there.
+The floating search bar (hamburger menu + input + search icon) is pure markup: Preline's dropdown is driven entirely by `data-hs-*` attributes and classes, no React state. That means the whole component can stay a **server component** — it ships zero JS. The input is disabled with a "(Part 3)" placeholder because faking a working search would be worse than being honest. See [`src/components/shell/SearchBar.tsx`](https://github.com/rabira-hierpa/rearc/blob/main/src/components/shell/SearchBar.tsx) for the full markup — the interesting part is what's _not_ there.
 
 ### The controls — commands in, snapshots out
 
@@ -784,8 +766,7 @@ export function CameraReadout() {
 
   return (
     <output className="...">
-      {camera.center.lat.toFixed(4)}, {camera.center.lon.toFixed(4)} · z
-      {camera.zoom.toFixed(1)}
+      {camera.center.lat.toFixed(4)}, {camera.center.lon.toFixed(4)} · z{camera.zoom.toFixed(1)}
     </output>
   );
 }
@@ -899,7 +880,7 @@ If you take one thing from this section: when a build "hangs," check `%CPU`, RSS
 
 ## What we have, and what's next
 
-At the end of Part 0 you have:
+At the end of Part 1 you have:
 
 - A Next.js 16 + React 19 app with Tailwind v4 and Preline configured the 2026 way (CSS-first, `@source`, re-init on navigation)
 - oxfmt + oxlint replacing Prettier + ESLint, ~30× faster, with Tailwind class sorting for free
@@ -907,6 +888,6 @@ At the end of Part 0 you have:
 - A Google-Maps-style UI shell — search pill, zoom/home controls, basemap toggle, live camera readout — where not a single chrome component imports ArcGIS
 - A production build that actually finishes, and a debugging story for when yours doesn't
 
-In **Part 1** the layer registry arrives: multiple feature layers, a `LayerRegistry` class behind the engine facade, a Preline slide-over layer panel with toggles, and the first real payoff of the snapshot pattern — layer visibility state that flows one way. See you there.
+In **Part 2** the layer registry arrives: multiple feature layers, a `LayerRegistry` class behind the engine facade, a Preline slide-over layer panel with toggles, and the first real payoff of the snapshot pattern — layer visibility state that flows one way. See you there.
 
-_The full source for this part is tagged [`part-1`](https://github.com/rabirahierpa/rearc/tree/part-1) in the repo. Found a problem or have a better pattern? Open an issue — this series is as much a lab notebook as a tutorial._
+_The full source for this part is tagged [`part-1`](https://github.com/rabira-hierpa/rearc/tree/part-1) in the repo. Found a problem or have a better pattern? Open an issue — this series is as much a lab notebook as a tutorial._

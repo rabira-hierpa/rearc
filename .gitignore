@@ -43,3 +43,6 @@ next-env.d.ts
 # claude code local settings
 .claude/settings.local.json
 .claude/.claude-backup/
+
+# keep the example env file for readers
+!.env.example

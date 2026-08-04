@@ -12,15 +12,15 @@ part of the series is a tagged milestone you can check out and run.
 ## Quick start
 
 ```bash
-git clone https://github.com/rabirahierpa/rearc.git
+git clone https://github.com/rabira-hierpa/rearc.git
 cd rearc
 npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>. No ArcGIS account or API key is needed — Part 0
+Open <http://localhost:3000>. No ArcGIS account or API key is needed — Part 1
 uses a public Esri sample service. (An optional key slot exists in
-`.env.example` for the premium services used from Part 2 onwards.)
+`.env.example` for the premium services used from Part 3 onwards.)
 
 ## The architecture in one paragraph
 
@@ -79,16 +79,16 @@ src/
 
 | Part | Topic                                                  | Status       |
 | ---- | ------------------------------------------------------ | ------------ |
-| 0    | Foundations — the hybrid pattern, a map on screen      | ✅ this code |
-| 1    | Layer registry & toggling                              | soon         |
-| 2    | Search: layers, features, geocoding (+ TanStack Query) | soon         |
-| 3    | Highlight & selection                                  | soon         |
-| 4    | Filtering: definition expressions & client-side        | soon         |
-| 5    | Mass edit with a Command stack (undo/redo)             | soon         |
-| 6    | Reports (+ GraphQL)                                    | soon         |
-| 7    | Network analysis on the Addis Ababa transit network    | soon         |
+| 1    | Foundations — the hybrid pattern, a map on screen      | ✅ this code |
+| 2    | Layer registry & toggling                              | soon         |
+| 3    | Search: layers, features, geocoding (+ TanStack Query) | soon         |
+| 4    | Highlight & selection                                  | soon         |
+| 5    | Filtering: definition expressions & client-side        | soon         |
+| 6    | Mass edit with a Command stack (undo/redo)             | soon         |
+| 7    | Reports (+ GraphQL)                                    | soon         |
+| 8    | Network analysis on the Addis Ababa transit network    | soon         |
 
 ## License
 
-[MIT](LICENSE). Map data in Part 0 comes from Esri's public sample services
+[MIT](LICENSE). Map data in Part 1 comes from Esri's public sample services
 and is subject to Esri's terms of use.

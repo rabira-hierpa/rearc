@@ -1,7 +1,7 @@
 import type { MapConfig } from "./types";
 
 /**
- * Post 0 uses a public Esri sample service (LA-area trailheads) so the repo
+ * Part 1 uses a public Esri sample service (LA-area trailheads) so the repo
  * runs with zero setup. Later posts swap in the Addis Ababa GTFS network and
  * this file is the only place that changes.
  */

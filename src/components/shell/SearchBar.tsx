@@ -26,7 +26,7 @@ export function SearchBar() {
             </span>
             <a
               className="flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-hidden"
-              href="https://github.com/rabirahierpa/rearc"
+              href="https://github.com/rabira-hierpa/rearc"
               target="_blank"
               rel="noreferrer"
               role="menuitem"
@@ -48,7 +48,7 @@ export function SearchBar() {
         <input
           type="search"
           disabled
-          placeholder="Search stops and routes (Part 2)"
+          placeholder="Search stops and routes (Part 3)"
           aria-label="Search the map"
           className="min-w-0 flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-400 focus:outline-hidden disabled:cursor-not-allowed"
         />
