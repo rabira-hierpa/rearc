@@ -909,4 +909,4 @@ At the end of Part 0 you have:
 
 In **Part 1** the layer registry arrives: multiple feature layers, a `LayerRegistry` class behind the engine facade, a Preline slide-over layer panel with toggles, and the first real payoff of the snapshot pattern — layer visibility state that flows one way. See you there.
 
-_The full source for this part is tagged [`part-0`](https://github.com/rabirahierpa/rearc/tree/part-0) in the repo. Found a problem or have a better pattern? Open an issue — this series is as much a lab notebook as a tutorial._
+_The full source for this part is tagged [`part-1`](https://github.com/rabirahierpa/rearc/tree/part-1) in the repo. Found a problem or have a better pattern? Open an issue — this series is as much a lab notebook as a tutorial._
