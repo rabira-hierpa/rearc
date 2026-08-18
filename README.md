@@ -18,15 +18,16 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>. No ArcGIS account or API key is needed — Part 1
-uses a public Esri sample service. (An optional key slot exists in
+Open <http://localhost:3000>. No ArcGIS account or API key is needed — Parts 1–2
+use public Esri sample services. (An optional key slot exists in
 `.env.example` for the premium services used from Part 3 onwards.)
 
 ## The architecture in one paragraph
 
 Everything imperative, mutable, and event-driven — the `MapView`, layers,
 watchers, and (later) selections and highlights — lives in a plain TypeScript
-class, [`MapEngine`](src/lib/map/MapEngine.ts), which never imports React.
+class, [`MapEngine`](src/lib/map/MapEngine.ts), delegating layer work to
+[`LayerRegistry`](src/lib/map/LayerRegistry.ts). Neither imports React.
 React holds a single stable reference to the engine in context and reads
 immutable state snapshots through `useSyncExternalStore`. The two worlds meet
 in exactly one place: [`MapCanvas`](src/components/map/MapCanvas.tsx) hands the
@@ -36,14 +37,18 @@ there are no re-render storms and no stale closures over live views.
 ```
 ┌─ React (declarative, thin) ─────────────────────────────┐
 │  MapProvider ── context: engine instance (never changes)│
-│  useEngineSnapshot() ── useSyncExternalStore            │
-│  SearchBar · MapControls · BasemapToggle · CameraReadout│
+│  useEngineSnapshot() ── whole snapshot                  │
+│  useEngineSelector() ── one slice (LayerPanel uses this)│
+│  SearchBar · MapControls · BasemapToggle · LayerPanel   │
 └──────────────┬────────────────────────▲─────────────────┘
      commands  │                        │  snapshots (immutable)
 ┌──────────────▼────────────────────────┴─────────────────┐
 │  MapEngine (imperative core — zero React imports)       │
-│  owns: MapView · layers · reactiveUtils watchers        │
+│  owns: MapView · reactiveUtils watchers                 │
 │  emits: "change" → new EngineSnapshot                   │
+│    └─ LayerRegistry — live layers ⇄ immutable rows      │
+│       prefs (user intent, survives remount)             │
+│       runtime (live layers, rebuilt on attach)          │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -53,34 +58,38 @@ there are no re-render storms and no stale closures over live views.
 src/
   lib/map/            The framework-free core
     MapEngine.ts        View lifecycle, commands, snapshot publishing
+    LayerRegistry.ts    Live layers ⇄ immutable rows, structural sharing
+    LayerRegistry.test.mts  Runs in plain Node — no DOM, no network
     emitter.ts          Typed event emitter (the useSyncExternalStore contract)
     config.ts           Basemaps, initial camera, layer definitions
     types.ts            EngineSnapshot and friends
   components/
     map/                The React ↔ engine bridge
-      MapProvider.tsx     Context + useMapEngine + useEngineSnapshot
+      MapProvider.tsx     Context + useMapEngine + useEngineSnapshot/Selector
       MapCanvas.tsx       The one place React hands the engine a DOM node
     shell/              Google-Maps-style chrome (Preline + Tailwind)
+      LayerPanel.tsx      Preline slide-over: toggles, opacity, isolate
     preline/            Preline re-init on App Router navigation
   app/                  Next.js App Router entry
 ```
 
 ## Scripts
 
-| Command             | What it does            |
-| ------------------- | ----------------------- |
-| `npm run dev`       | Dev server (Turbopack)  |
-| `npm run build`     | Production build        |
-| `npm run lint`      | oxlint                  |
-| `npm run fmt`       | oxfmt (writes in place) |
-| `npm run typecheck` | `tsc --noEmit`          |
+| Command             | What it does                        |
+| ------------------- | ----------------------------------- |
+| `npm run dev`       | Dev server (Turbopack)              |
+| `npm run build`     | Production build                    |
+| `npm test`          | Node test runner (needs Node 22.6+) |
+| `npm run lint`      | oxlint                              |
+| `npm run fmt`       | oxfmt (writes in place)             |
+| `npm run typecheck` | `tsc --noEmit`                      |
 
 ## The series
 
 | Part | Topic                                                  | Status       |
 | ---- | ------------------------------------------------------ | ------------ |
-| 1    | Foundations — the hybrid pattern, a map on screen      | ✅ this code |
-| 2    | Layer registry & toggling                              | soon         |
+| 1    | Foundations — the hybrid pattern, a map on screen      | ✅ done      |
+| 2    | Layer registry & toggling                              | ✅ this code |
 | 3    | Search: layers, features, geocoding (+ TanStack Query) | soon         |
 | 4    | Highlight & selection                                  | soon         |
 | 5    | Filtering: definition expressions & client-side        | soon         |
@@ -90,5 +99,5 @@ src/
 
 ## License
 
-[MIT](LICENSE). Map data in Part 1 comes from Esri's public sample services
+[MIT](LICENSE). Map data in Parts 1–2 comes from Esri's public sample services
 and is subject to Esri's terms of use.

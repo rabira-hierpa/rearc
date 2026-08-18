@@ -2,15 +2,12 @@ import type EsriMap from "@arcgis/core/Map";
 import type MapView from "@arcgis/core/views/MapView";
 
 import { Emitter } from "./emitter";
-import type { BasemapId, EngineSnapshot, MapConfig } from "./types";
+import { LayerRegistry } from "./LayerRegistry";
+import type { BasemapId, EngineSnapshot, MapConfig, WatchHandle } from "./types";
 
 type EngineEvents = {
   change: EngineSnapshot;
 };
-
-interface WatchHandle {
-  remove(): void;
-}
 
 /**
  * The imperative core of the app. Owns the ArcGIS Map and MapView, every
@@ -25,10 +22,14 @@ interface WatchHandle {
  * The ArcGIS SDK is loaded with dynamic imports inside `attach`, so the
  * ~2 MB of map code stays out of the initial bundle and out of the server
  * build entirely.
+ *
+ * Layer work lives in `LayerRegistry`; the engine is the facade in front of
+ * it, so React never learns there is a second class back here.
  */
 export class MapEngine {
   private readonly config: MapConfig;
   private readonly emitter = new Emitter<EngineEvents>();
+  private readonly registry: LayerRegistry;
   private snapshot: EngineSnapshot;
 
   private map: EsriMap | null = null;
@@ -44,11 +45,17 @@ export class MapEngine {
 
   constructor(config: MapConfig) {
     this.config = config;
+    // The registry calls back when a layer row actually changes — never on
+    // every watcher tick. See LayerRegistry.reconcile.
+    this.registry = new LayerRegistry(config.layers, () => {
+      this.patch({ layers: this.registry.getStates() });
+    });
     this.snapshot = {
       status: "idle",
       error: null,
       basemapId: config.initialBasemap,
       camera: config.initialCamera,
+      layers: this.registry.getStates(),
     };
   }
 
@@ -85,8 +92,11 @@ export class MapEngine {
 
       const map = new EsriMap({
         basemap: this.config.basemaps[this.snapshot.basemapId],
-        layers: this.config.layers.map((layer) => new FeatureLayer(layer)),
       });
+
+      // The registry builds the layers, applying whatever the user had
+      // switched on before this attach — a remount must not reset the panel.
+      this.registry.build(map, { FeatureLayer, reactiveUtils });
 
       const { center, zoom } = this.snapshot.camera;
       const view = new MapView({
@@ -110,6 +120,14 @@ export class MapEngine {
             if (stationary) this.syncCamera();
           },
         ),
+        // Scale changes continuously while zooming, but the registry only
+        // publishes when a layer crosses in or out of its scale range, so
+        // React sees a handful of updates rather than one per frame.
+        reactiveUtils.watch(
+          () => view.scale,
+          (scale) => this.registry.setScale(scale),
+          { initial: true },
+        ),
       );
 
       await view.when();
@@ -128,6 +146,9 @@ export class MapEngine {
     this.generation++;
     for (const handle of this.watchHandles) handle.remove();
     this.watchHandles = [];
+    // Before destroying the map: the registry's watchers point at layers that
+    // are about to be torn down with it.
+    this.registry.teardown();
     this.view?.destroy();
     this.map?.destroy();
     this.view = null;
@@ -170,6 +191,60 @@ export class MapEngine {
     }
     map.basemap = basemap;
     this.patch({ basemapId: id });
+  }
+
+  // --- Layer commands ------------------------------------------------------
+  // Thin delegation on purpose: React talks to one object, and the registry
+  // stays replaceable (Part 5 gives it filters, Part 6 an undo stack).
+
+  setLayerVisible(id: string, visible: boolean): void {
+    this.registry.setVisible(id, visible);
+  }
+
+  toggleLayer(id: string): void {
+    this.registry.toggle(id);
+  }
+
+  setAllLayersVisible(visible: boolean): void {
+    this.registry.setAllVisible(visible);
+  }
+
+  isolateLayer(id: string): void {
+    this.registry.isolate(id);
+  }
+
+  setLayerOpacity(id: string, opacity: number): void {
+    this.registry.setOpacity(id, opacity);
+  }
+
+  /** Frame the layer's full extent. Needs the view, so it lives here. */
+  async zoomToLayer(id: string): Promise<void> {
+    const view = this.view;
+    const layer = this.registry.getLayer(id);
+    if (!view || !layer) return;
+
+    await layer.when();
+    if (!layer.fullExtent) return;
+    view.goTo(layer.fullExtent, { duration: 500 }).catch(ignoreViewInterruption);
+  }
+
+  /**
+   * Zoom to where a scale-limited layer starts drawing. Without this, "on but
+   * invisible" leaves the user hunting for the right zoom level by hand.
+   */
+  zoomToLayerScale(id: string): void {
+    const view = this.view;
+    const definition = this.config.layers.find((layer) => layer.id === id);
+    if (!view || !definition) return;
+
+    const { minScale = 0, maxScale = 0 } = definition.properties;
+    // A 10% margin keeps us clear of the boundary the layer is judged against.
+    let target = view.scale;
+    if (minScale > 0 && view.scale > minScale) target = minScale * 0.9;
+    else if (maxScale > 0 && view.scale < maxScale) target = maxScale * 1.1;
+    else return;
+
+    view.goTo({ scale: target }, { duration: 400 }).catch(ignoreViewInterruption);
   }
 
   private zoomBy(delta: number): void {

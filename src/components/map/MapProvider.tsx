@@ -52,3 +52,24 @@ export function useEngineSnapshot(): EngineSnapshot {
     engine.getSnapshot,
   );
 }
+
+/**
+ * Subscribe to one slice of the snapshot instead of all of it.
+ *
+ * `useEngineSnapshot` re-renders on *any* engine change — including the camera
+ * update that fires every time the map settles. A layer panel does not care
+ * about the camera, so it selects `snapshot.layers` and re-renders only when
+ * that array is replaced.
+ *
+ * The rule this depends on: **the selector must return a referentially stable
+ * value.** React compares consecutive `getSnapshot()` results with `Object.is`
+ * and, if a selector builds a new object or array each call, loops until it
+ * gives up with "The result of getSnapshot should be cached to avoid an
+ * infinite loop". Reach for a field, never a computed collection — the engine
+ * is the side that does the caching (see `LayerRegistry.reconcile`).
+ */
+export function useEngineSelector<T>(select: (snapshot: EngineSnapshot) => T): T {
+  const engine = useMapEngine();
+  const read = () => select(engine.getSnapshot());
+  return useSyncExternalStore(engine.subscribe, read, read);
+}
