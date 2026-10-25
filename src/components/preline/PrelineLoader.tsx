@@ -18,6 +18,9 @@ export function PrelineLoader() {
       window.HSStaticMethods.autoInit();
     }
     void init();
+    // `pathname` is not read by the effect — it IS the trigger. Re-running on
+    // navigation is the entire point, so the "extra dependency" is deliberate.
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [pathname]);
 
   return null;
