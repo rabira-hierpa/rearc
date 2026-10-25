@@ -22,6 +22,57 @@ export interface WatchHandle {
 /** Mirrors the SDK's `Loadable.loadStatus`, kept as our own type on purpose. */
 export type LayerStatus = "not-loaded" | "loading" | "loaded" | "failed";
 
+/** Where a search result came from. Also the display order of the sections. */
+export type SearchResultKind = "layer" | "feature" | "place";
+
+/**
+ * A location as plain numbers. Geometry is converted to degrees inside the
+ * engine, so no ArcGIS `Point` or `Extent` ever reaches React — the same rule
+ * that keeps `MapView` out of the snapshot.
+ */
+export interface SearchTarget {
+  center: LonLat;
+  /** [west, south, east, north] in degrees, when the result has an extent. */
+  extent?: readonly [number, number, number, number];
+  /** Fallback scale for a point with no extent of its own. */
+  scale?: number;
+}
+
+export interface SearchResult {
+  /** Stable within a result set — used as the React key and the active id. */
+  id: string;
+  kind: SearchResultKind;
+  title: string;
+  subtitle?: string;
+  /** The layer a feature came from, or the layer a "layer" result names. */
+  layerId?: string;
+  /** Absent for layer results: those resolve through `layerId` instead. */
+  target?: SearchTarget;
+}
+
+/** One source failing is not the search failing — see `SearchService`. */
+export interface SearchFailure {
+  kind: SearchResultKind;
+  message: string;
+}
+
+export interface SearchResponse {
+  results: readonly SearchResult[];
+  failures: readonly SearchFailure[];
+}
+
+/**
+ * The result the user committed to. Unlike the candidate list — which belongs
+ * to whichever component asked — this is map state: it moves the camera and
+ * puts a marker on it, so it lives in the snapshot where anyone can see it.
+ */
+export interface SearchPin {
+  title: string;
+  subtitle?: string;
+  kind: SearchResultKind;
+  center: LonLat;
+}
+
 /**
  * How React draws a layer's legend chip. Declared as data so the shell can
  * render a legend without importing a single byte of the ArcGIS SDK.
@@ -57,6 +108,14 @@ export interface LayerDefinition {
   visible?: boolean;
   /** 0–1, defaults to 1. */
   opacity?: number;
+  /**
+   * Fields a text search runs against. Leave it out and the service's own
+   * `displayField` is used — which is the honest default when you don't
+   * control the schema.
+   */
+  searchFields?: string[];
+  /** Set false to keep a layer out of search results entirely. */
+  searchable?: boolean;
   properties: FeatureLayerProperties;
 }
 
@@ -103,6 +162,21 @@ export interface EngineSnapshot {
   camera: CameraState;
   /** Bottom-to-top draw order, same order as `MapConfig.layers`. */
   layers: readonly LayerState[];
+  /** The committed search result, or null. Drawn on the map as a marker. */
+  pin: SearchPin | null;
+}
+
+export interface SearchConfig {
+  /**
+   * Esri's World Geocoding Service. Geocoding is a paid service, so place
+   * search is skipped entirely when no API key is configured — the other two
+   * sources keep working.
+   */
+  geocodeUrl: string;
+  /** Results kept per source, per layer for features. */
+  limitPerSource: number;
+  /** Shortest term worth sending to a server. */
+  minTermLength: number;
 }
 
 export interface MapConfig {
@@ -116,4 +190,5 @@ export interface MapConfig {
   groups: LayerGroup[];
   /** Draw order, bottom first — the order the SDK expects. */
   layers: LayerDefinition[];
+  search: SearchConfig;
 }

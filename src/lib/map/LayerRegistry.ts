@@ -76,6 +76,24 @@ export class LayerRegistry {
   }
 
   /**
+   * Loaded layers paired with the definitions that configured them — what
+   * feature search runs against. Layers that failed, haven't loaded yet, or
+   * opted out are left out, so search never queries a service it knows is
+   * broken.
+   */
+  getSearchable(): { definition: LayerDefinition; layer: FeatureLayer }[] {
+    const searchable: { definition: LayerDefinition; layer: FeatureLayer }[] = [];
+    for (const definition of this.definitions) {
+      if (definition.searchable === false) continue;
+      const runtime = this.runtime.get(definition.id);
+      if (runtime?.status === "loaded") {
+        searchable.push({ definition, layer: runtime.layer });
+      }
+    }
+    return searchable;
+  }
+
+  /**
    * Construct every configured layer, apply the remembered prefs, add them to
    * the map in draw order, and start watching them.
    */

@@ -33,6 +33,12 @@ export const MAP_CONFIG: MapConfig = {
     { id: "network", title: "Network" },
     { id: "context", title: "Context" },
   ],
+  search: {
+    geocodeUrl: "https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer",
+    limitPerSource: 5,
+    // Two characters match half the continent and cost a request per layer.
+    minTermLength: 2,
+  },
   // Draw order, bottom first — the order `Map.layers` expects. The panel
   // reverses it, because a legend reads top-down like the map does.
   layers: [
@@ -77,6 +83,9 @@ export const MAP_CONFIG: MapConfig = {
       group: "network",
       description: "The nodes — visible from zoom 11 in",
       swatch: { kind: "point", color: COLORS.trailhead, outline: "#ffffff" },
+      // The one layer whose schema Part 1 already pinned down. The other two
+      // fall back to the service's own displayField.
+      searchFields: ["TRL_NAME", "PARK_NAME"],
       properties: {
         url: `${SERVICES}/Trailheads/FeatureServer/0`,
         outFields: ["TRL_NAME", "PARK_NAME", "ELEV_FT", "PARKING"],
